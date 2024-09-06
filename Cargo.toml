@@ -1,0 +1,19 @@
+[package]
+name = "prologrs"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rustyline = "14.0.0"
+
+[dev-dependencies]
+test-case = "3.3.1"
+
+[profile.optimized]
+# see: https://doc.rust-lang.org/rustc/codegen-options/index.html
+inherits = "release"
+strip = "symbols"
+lto = true
+
+[lib]
+doctest = false
