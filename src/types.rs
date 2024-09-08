@@ -29,7 +29,11 @@ impl fmt::Display for Term {
                 }
             }
             Struct(op, args) if args.len() == 2 && is_operator(op) => {
-                write!(f, "{}{}{}", args[0], op, args[1])
+                if op.chars().any(|c| c.is_alphabetic()) {
+                    write!(f, "{} {} {}", args[0], op, args[1])
+                } else {
+                    write!(f, "{}{}{}", args[0], op, args[1])
+                }
             }
             Struct(name, args) => write!(f, "{}({})", name, join(args)),
             Variable(id, _) => write!(f, "{}", id),
@@ -172,6 +176,11 @@ mod tests {
         structure!("+", Number(1), structure!("*", Number(2), Number(-5))),
         "1+2*-5";
         "operators"
+    )]
+    #[test_case(
+        structure!("is", var!("X"), structure!("+", Number(2), Number(1))),
+        "X is 2+1";
+        "operators with spaces"
     )]
     fn fmt(input: Term, expected: &str) {
         assert_eq!(input.to_string(), expected);
