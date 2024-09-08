@@ -68,9 +68,10 @@ impl ByrdBox {
         let status = call()?;
         if unsafe { TRACE } {
             let goal = self.materialize(vars);
-            match status {
-                true => println!("EXIT: {}", goal),
-                false => println!("FAIL: {}", goal),
+            if status {
+                println!("EXIT: {}", goal);
+            } else {
+                println!("FAIL: {}", goal);
             }
         }
         Ok(status)
@@ -615,21 +616,18 @@ impl And {
                 self.cut_before(pos);
             }
 
-            match self.goals[pos].call(vars)? {
-                true => {
-                    pos += 1;
-                }
-                false => {
-                    // try other branch or backtrack
-                    match self.backtrack(pos, vars)? {
-                        Some(i) => {
-                            pos = i;
-                            vars.truncate(checkpoints[pos]);
-                        }
-                        None => {
-                            self.done = true;
-                            return Ok(false);
-                        }
+            if self.goals[pos].call(vars)? {
+                pos += 1;
+            } else {
+                // try other branch or backtrack
+                match self.backtrack(pos, vars)? {
+                    Some(i) => {
+                        pos = i;
+                        vars.truncate(checkpoints[pos]);
+                    }
+                    None => {
+                        self.done = true;
+                        return Ok(false);
                     }
                 }
             }
