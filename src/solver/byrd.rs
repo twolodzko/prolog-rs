@@ -418,21 +418,22 @@ struct Clause {
 
 impl Clause {
     fn call(&mut self, vars: &mut Vars) -> Result<Status, Error> {
-        if unify(&self.goal, &self.head, vars) {
-            if let Some(body) = self.body.as_mut() {
-                vars.branch();
-                let prev_vars = vars.len();
-                if body.call(vars)? {
-                    return Ok(true);
-                }
-                // reset vars (it's append only, so we can truncate it to the previous state)
-                vars.truncate(prev_vars);
-                return Ok(false);
-            }
-            return Ok(true);
+        if !unify(&self.goal, &self.head, vars) {
+            self.body = None;
+            return Ok(false);
         }
-        self.body = None;
-        Ok(false)
+
+        if let Some(body) = self.body.as_mut() {
+            vars.branch();
+            let prev_vars = vars.len();
+            if body.call(vars)? {
+                return Ok(true);
+            }
+            // reset vars (it's append only, so we can truncate it to the previous state)
+            vars.truncate(prev_vars);
+            return Ok(false);
+        }
+        Ok(true)
     }
 
     fn next_clause(&mut self, vars: &Vars) -> Result<bool, Error> {
