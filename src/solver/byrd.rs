@@ -423,6 +423,8 @@ impl Clause {
                 vars.branch();
                 let prev_vars = vars.len();
                 loop {
+                    // TODO: why is this loop even needed?
+                    //       It should already happen in the body.call.
                     if body.call(vars)? {
                         return Ok(true);
                     }
