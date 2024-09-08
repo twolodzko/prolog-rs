@@ -422,23 +422,16 @@ impl Clause {
             if let Some(body) = self.body.as_mut() {
                 vars.branch();
                 let prev_vars = vars.len();
-                loop {
-                    // TODO: why is this loop even needed?
-                    //       It should already happen in the body.call.
-                    if body.call(vars)? {
-                        return Ok(true);
-                    }
-
-                    // reset vars (it's append only, so we can truncate it to the previous state)
-                    vars.truncate(prev_vars);
-
-                    if !body.next_clause(vars)? {
-                        return Ok(false);
-                    }
+                if body.call(vars)? {
+                    return Ok(true);
                 }
+                // reset vars (it's append only, so we can truncate it to the previous state)
+                vars.truncate(prev_vars);
+                return Ok(false);
             }
             return Ok(true);
         }
+        self.body = None;
         Ok(false)
     }
 
