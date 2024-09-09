@@ -2507,9 +2507,7 @@ fn all_solutions(knowledge: &str, query: &str, expected: Result<Vec<Vars>, Error
     }
 
     // load standard library
-    if let Err(err) = eval_file("lib/stdlib.pl", db.clone()) {
-        panic!("{}", err);
-    }
+    eval_file("lib/stdlib.pl", db.clone()).unwrap();
 
     loop {
         match parser::next(&mut lex) {
@@ -2524,14 +2522,10 @@ fn all_solutions(knowledge: &str, query: &str, expected: Result<Vec<Vars>, Error
 
     let mut reader = StringReader::from(query);
     let mut lex = Lexer::from(&mut reader);
-    let solver = match parser::next(&mut lex) {
-        Err(msg) => panic!("{}", msg),
-        Ok(ref expr) => match expr {
-            Question(goals) => ByrdBox::from(goals, db.clone()).unwrap(),
-            _ => unreachable!(),
-        },
+    let solver = match parser::next(&mut lex).unwrap() {
+        Question(ref goals) => ByrdBox::from(goals, db.clone()).unwrap(),
+        _ => unreachable!(),
     };
-
     let result: Result<Vec<Vars>, Error> = solver.iter().collect();
     assert_eq!(result, expected);
 }
@@ -2544,10 +2538,84 @@ fn all_solutions(knowledge: &str, query: &str, expected: Result<Vec<Vars>, Error
 fn integration_test(path: &str) {
     let db = Database::new();
     // load standard library
-    if let Err(err) = eval_file("lib/stdlib.pl", db.clone()) {
-        panic!("{}", err);
-    }
+    eval_file("lib/stdlib.pl", db.clone()).unwrap();
     if let Err(err) = eval_file(path, db) {
-        panic!("Error: {}", err)
+        panic!("Unexpected error: {}", err)
     }
+}
+
+#[test]
+fn queens_test() {
+    let db = Database::new();
+    // load standard library
+    eval_file("lib/stdlib.pl", db.clone()).unwrap();
+    eval_file("examples/eight_queens.pl", db.clone()).unwrap();
+
+    // using 6 queens to make it faster
+    let solver = eval_expr(
+        &Term::Question(vec![structure!("queens", Number(6), init_var!("Qs"))]),
+        db,
+    )
+    .unwrap();
+
+    let result = solver.unwrap().collect::<Result<Vec<_>, Error>>().unwrap();
+    let expected = vec![
+        Vars::from([(
+            init_var!("Qs"),
+            parser::make_list(
+                &[
+                    Number(5),
+                    Number(3),
+                    Number(1),
+                    Number(6),
+                    Number(4),
+                    Number(2),
+                ],
+                Nil,
+            ),
+        )]),
+        Vars::from([(
+            init_var!("Qs"),
+            parser::make_list(
+                &[
+                    Number(4),
+                    Number(1),
+                    Number(5),
+                    Number(2),
+                    Number(6),
+                    Number(3),
+                ],
+                Nil,
+            ),
+        )]),
+        Vars::from([(
+            init_var!("Qs"),
+            parser::make_list(
+                &[
+                    Number(3),
+                    Number(6),
+                    Number(2),
+                    Number(5),
+                    Number(1),
+                    Number(4),
+                ],
+                Nil,
+            ),
+        )]),
+        Vars::from([(
+            init_var!("Qs"),
+            parser::make_list(
+                &[
+                    Number(2),
+                    Number(4),
+                    Number(6),
+                    Number(1),
+                    Number(3),
+                    Number(5),
+                ],
+                Nil,
+            ),
+        )]),
+    ];
+    assert_eq!(result, expected)
 }
