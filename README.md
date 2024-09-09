@@ -168,7 +168,7 @@ More functionalities are implemented in the standard library available through `
 * Arithmetic `div` and `mod` use [Rust's `i32::div_euclid` and `i32::rem_euclid`][i32] which are defined
   [differently to Prolog][swipl-div], but meet the requirement of being consistent with each other.
 * Since `_` does not bind, the query like `?- L = [_, _], L = [1, _], L = [2, _]` would give a logically inconsistent
-  answer "yes". The same query would work correstly in SWI Prolog, but not in Tau prolog
+  answer "yes". The same query would work correctly in SWI Prolog, but not in Tau prolog
   (e.g. [prolog.run](https://prolog.run/)).
 * The implementation is not tail-call optimized, so can easily overflow when satisfying complex goals.
 * Tracing is simplified and limited as compared to the other implementations.
