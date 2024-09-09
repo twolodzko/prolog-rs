@@ -60,8 +60,9 @@ range(M,N,[M|Ns]) :-
 	M1 is M+1,
 	range(M1,N,Ns).
 
+% This goal will print all the solutions and exit
 main :-
 	queens(8, Qs),
 	display(Qs),
 	fail.
-main :- true.
+main.
