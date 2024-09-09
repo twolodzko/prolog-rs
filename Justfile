@@ -1,7 +1,7 @@
 # run linter and tests
 test: fmt
     cargo clippy
-    cargo test -q
+    cargo test
 
 # autoformat the code
 fmt:

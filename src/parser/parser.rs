@@ -112,7 +112,7 @@ fn read_term(lex: &mut Lexer) -> Result<Term, ParsingError> {
             if id == "_" {
                 Any
             } else {
-                Variable(id, 0)
+                Variable(id)
             }
         }
         Token::Number(val) => {
@@ -432,25 +432,25 @@ mod tests {
         "max2(X,Y,Max) :- (X >= Y, !, Max = X) ; Max = Y.",
         Rule(
             Box::new(Struct("max2".to_string(), vec![
-                Variable("X".to_string(), 0),
-                Variable("Y".to_string(), 0),
-                Variable("Max".to_string(), 0),
+                Variable("X".to_string()),
+                Variable("Y".to_string()),
+                Variable("Max".to_string()),
             ])),
             vec![Struct(";".to_string(), vec![
                 Struct(",".to_string(), vec![
                     Struct(">=".to_string(), vec![
-                        Variable("X".to_string(), 0),
-                        Variable("Y".to_string(), 0),
+                        Variable("X".to_string()),
+                        Variable("Y".to_string()),
                     ]),
                     Atom("!".to_string()),
                     Struct("=".to_string(), vec![
-                        Variable("Max".to_string(), 0),
-                        Variable("X".to_string(), 0),
+                        Variable("Max".to_string()),
+                        Variable("X".to_string()),
                     ])
                 ]),
                 Struct("=".to_string(), vec![
-                    Variable("Max".to_string(), 0),
-                    Variable("Y".to_string(), 0),
+                    Variable("Max".to_string()),
+                    Variable("Y".to_string()),
                 ])
             ])]
         );

@@ -8,7 +8,7 @@ pub enum Term {
     Struct(String, Vec<Term>), // id(args...), it also is used for lists [1,2|[]] is .(1, .(2, []))
     Nil,                       // empty list []
     // special forms
-    Variable(String, usize),    // Id
+    Variable(String),           // Id
     Any,                        // wildcard _
     Rule(Box<Term>, Vec<Term>), // head :- body
     Question(Vec<Term>),        // ?- body.
@@ -36,7 +36,7 @@ impl fmt::Display for Term {
                 }
             }
             Struct(name, args) => write!(f, "{}({})", name, join(args)),
-            Variable(id, _) => write!(f, "{}", id),
+            Variable(id) => write!(f, "{}", id),
             Number(val) => write!(f, "{}", val),
             Nil => write!(f, "[]"),
             Rule(head, body) => write!(f, "{} :- {}.", head, join(body)),
@@ -119,7 +119,7 @@ impl Iterator for ConsIter {
 #[macro_export]
 macro_rules! var {
     ( $id:expr ) => {
-        Variable($id.to_string(), 0)
+        Variable($id.to_string())
     };
 }
 
@@ -190,7 +190,7 @@ mod tests {
     fn macros_expansion() {
         let tt = [
             (atom!("foo"), Atom("foo".to_string())),
-            (var!("Bar"), Variable("Bar".to_string(), 0)),
+            (var!("Bar"), Variable("Bar".to_string())),
             (
                 structure!("foo", Number(1)),
                 Struct("foo".to_string(), vec![Number(1)]),
@@ -203,7 +203,7 @@ mod tests {
                         Number(1),
                         Struct(
                             "foo".to_string(),
-                            vec![Number(2), Variable("X".to_string(), 0)],
+                            vec![Number(2), Variable("X".to_string())],
                         ),
                     ],
                 ),
