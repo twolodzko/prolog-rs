@@ -25,6 +25,9 @@ $ just repl      # start REPL
 To install it, move the `prolog` binary together with the `lib/` directory to some
 directory of your choice.
 
+Calling `./prolog -e FILE` from the command line would evaluate the *FILE*, run
+the `main/0` goal (if available), and exit.
+
 ## Data types
 
 The units of data in Prolog are called *terms*.

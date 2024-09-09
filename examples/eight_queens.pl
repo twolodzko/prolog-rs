@@ -59,3 +59,9 @@ range(M,N,[M|Ns]) :-
 	M < N,
 	M1 is M+1,
 	range(M1,N,Ns).
+
+main :-
+	queens(8, Qs),
+	display(Qs),
+	fail.
+main :- true.

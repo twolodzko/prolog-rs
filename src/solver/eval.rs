@@ -1,9 +1,10 @@
 use super::{byrd::ByrdBox, Solver};
 use crate::{
+    atom,
     database::Database,
     errors::Error,
     parser::{self, FileReader, Lexer},
-    types::Term::{self, Question},
+    types::Term::{self, Atom, Question},
 };
 use std::borrow::BorrowMut;
 
@@ -31,6 +32,20 @@ pub fn eval_file(path: &str, db: Database) -> Result<(), Error> {
             Err(msg) => return Err(msg.into()),
         }
     }
+}
+
+pub fn eval_main(db: Database) -> Result<(), Error> {
+    if db.query(&atom!("main")).is_some() {
+        match eval_expr(&Question(vec![atom!("main")]), db) {
+            Ok(Some(mut solver)) => match solver.next() {
+                Some(_) => (),
+                None => return Err(Error::NoMatch),
+            },
+            Ok(None) => (),
+            Err(err) => return Err(err),
+        }
+    }
+    Ok(())
 }
 
 pub fn eval_expr(term: &Term, mut db: Database) -> Result<Option<Solver>, Error> {

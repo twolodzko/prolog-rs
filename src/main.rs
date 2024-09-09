@@ -6,7 +6,7 @@ use prologrs::{
         ParsingError::{EndOfInput, Interrupted},
         StdinReader,
     },
-    solver::{eval_expr, eval_file, Solver},
+    solver::{eval_expr, eval_file, eval_main, Solver},
 };
 use std::env;
 
@@ -88,7 +88,7 @@ fn print_solutions(mut solver: Solver, lex: &mut Lexer) -> Result<(), Error> {
 
 pub fn print_help() {
     println!("{} [-e][-h] [FILE...]\n", env::args().next().unwrap());
-    println!(" -e, --exit\timmediately exit after evaluating file(s)");
+    println!(" -e, --exit\trun the main/0 goal and exit");
     println!(" -n, --no-std\tdo not load the standard library");
     println!(" -h, --help\tdisplay this help");
 }
@@ -125,7 +125,12 @@ fn main() {
         }
     }
 
-    if !exit {
+    if exit {
+        if let Err(msg) = eval_main(db) {
+            err!(format!("failed to load stdlib: {}", msg));
+            std::process::exit(1);
+        }
+    } else {
         repl(db)
     }
 }

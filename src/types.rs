@@ -39,8 +39,8 @@ impl fmt::Display for Term {
             Variable(id, _) => write!(f, "{}", id),
             Number(val) => write!(f, "{}", val),
             Nil => write!(f, "[]"),
-            Rule(head, body) => write!(f, "{} :- {}", head, join(body)),
-            Question(body) => write!(f, "?- {}", join(body)),
+            Rule(head, body) => write!(f, "{} :- {}.", head, join(body)),
+            Question(body) => write!(f, "?- {}.", join(body)),
         }
     }
 }
