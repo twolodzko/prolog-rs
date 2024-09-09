@@ -127,7 +127,7 @@ fn main() {
 
     if exit {
         if let Err(msg) = eval_main(db) {
-            err!(format!("failed to load stdlib: {}", msg));
+            err!(msg);
             std::process::exit(1);
         }
     } else {
