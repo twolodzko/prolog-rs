@@ -8,9 +8,9 @@ use std::fmt::Error;
 enum Cell {
     /// Variable reference
     Ref(usize),
-    /// Structure representation
+    /// Structure reference
     Str(String, usize),
-    /// Functor
+    /// Functor head
     Fun(String, usize),
     /// Number
     Num(i32),

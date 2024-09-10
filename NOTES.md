@@ -67,6 +67,13 @@ until the listener runs out of space.
  * https://web.stanford.edu/class/archive/cs/cs106b/cs106b.1188/lectures/Lecture11/Lecture11.pdf
  * https://www.cs.toronto.edu/~hojjat/384w09/Lectures/Lecture-04-Backtracking-Search.pdf
 
+## Warren's Abstract Machine
+
+* https://cs.franklin.edu/~brownc/640/wam-slides.pdf
+* https://www.complang.tuwien.ac.at/adrian/forthlog/literatur/wambook.pdf
+* https://cliplab.org/logalg/slides/8_wam.pdf
+* https://www.sri.com/wp-content/uploads/2021/12/641.pdf
+
 ## Other
 
  * https://www.cs.jhu.edu/~jason/325/PDFSlides/14prolog.pdf
