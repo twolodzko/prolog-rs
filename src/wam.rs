@@ -9,7 +9,7 @@ enum Cell {
     /// Variable reference
     Ref(usize),
     /// Structure reference
-    Str(String, usize),
+    Str(usize),
     /// Functor head
     Fun(String, usize),
     /// Number
