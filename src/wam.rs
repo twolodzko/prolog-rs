@@ -16,6 +16,12 @@ enum Cell {
     Num(i32),
 }
 
+enum Instruction {
+    SetValue(usize),
+    SetVariable(usize),
+    PutStruct(String, usize, usize),
+}
+
 /// Warren Abstract Machine
 pub struct WAM {
     heap: Vec<Cell>,

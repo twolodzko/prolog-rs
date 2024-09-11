@@ -8,10 +8,13 @@ pub enum Term {
     Struct(String, Vec<Term>), // id(args...), it also is used for lists [1,2|[]] is .(1, .(2, []))
     Nil,                       // empty list []
     // special forms
-    Variable(String),           // Id
-    Any,                        // wildcard _
+    Variable(String), // Id
+    Any,              // wildcard _
+    // TODO: remove those
     Rule(Box<Term>, Vec<Term>), // head :- body
     Question(Vec<Term>),        // ?- body.
+    // TODO: add this
+    Addr(usize),
 }
 
 impl fmt::Display for Term {
