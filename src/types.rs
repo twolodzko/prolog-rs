@@ -13,7 +13,7 @@ pub enum Term {
     // TODO: remove those
     Rule(Box<Term>, Vec<Term>), // head :- body
     Question(Vec<Term>),        // ?- body.
-    // TODO: add this
+    // The memory address
     Addr(usize),
 }
 
@@ -44,6 +44,7 @@ impl fmt::Display for Term {
             Nil => write!(f, "[]"),
             Rule(head, body) => write!(f, "{} :- {}.", head, join(body)),
             Question(body) => write!(f, "?- {}.", join(body)),
+            Addr(addr) => write!(f, "_{}", addr),
         }
     }
 }

@@ -1,6 +1,5 @@
 // FIXME
 #![expect(dead_code)]
-#![expect(unused_variables)]
 
 use crate::{errors::Error, types::Term};
 
@@ -16,126 +15,81 @@ enum Cell {
     Num(i32),
 }
 
+#[derive(Debug, PartialEq)]
 enum Instruction {
-    SetValue(usize),
-    SetVariable(usize),
-    PutStruct(String, usize, usize),
+    SetVal(usize),
+    SetVar(usize),
+    PutStr(String, usize, usize),
 }
 
 /// Warren Abstract Machine
 pub struct WAM {
+    code: Vec<Instruction>,
     heap: Vec<Cell>,
-    vars: Vars,
 }
 
 impl WAM {
-    pub fn run(&mut self, term: &Term) -> Result<(), Error> {
-        self.compile_query(term)?;
-        Ok(())
+    pub fn compile(&mut self, term: &Term) -> Result<(), Error> {
+        let mut registers = Vec::new();
+        flatten(term.clone(), &mut registers);
+        println!("registers: {:?}", registers);
+        self.compile_query(&registers)
     }
 
-    fn compile_query(&mut self, term: &Term) -> Result<usize, Error> {
+    fn compile_query(&mut self, registers: &[Term]) -> Result<(), Error> {
+        use Instruction::*;
         use Term::*;
-        match term {
-            Atom(_) | Number(_) => self.set_value(term),
-            Variable(id) => {
-                if let Some(pos) = self.vars.get_val(id.as_str()) {
-                    return Ok(*pos);
-                } else {
-                    self.set_variable();
-                }
-            }
-            Struct(id, args) => {
-                let mut flat = self.flatten(args)?;
-                self.put_structure(id, args.len());
-                let head = self.heap.len() - 1;
-                self.heap.append(&mut flat);
-                return Ok(head);
-            }
-            _ => unreachable!(),
-        }
-        Ok(self.heap.len() - 1)
-    }
-
-    /// Push the arguments of a struct to the stack.
-    /// Return the list of references to the stack cells that were created.
-    fn flatten(&mut self, args: &[Term]) -> Result<Vec<Cell>, Error> {
-        use Cell::*;
-        use Term::*;
-
-        let mut flat = Vec::new();
-        let mut h = 1;
-        for arg in args {
-            h += 1;
-            match arg {
-                Struct(_, _) => {
-                    h = self.compile_query(arg)?;
-                    flat.push(Str(h));
-                }
-                Variable(id) => {
-                    if let Some(pos) = self.vars.get_val(id.as_str()) {
-                        flat.push(Ref(*pos));
-                    } else {
-                        flat.push(Ref(h));
-                        self.vars.insert(id.to_string(), h);
+        for (i, reg) in registers.iter().enumerate() {
+            match reg {
+                Struct(id, args) => {
+                    let arity = args.len();
+                    self.code.push(PutStr(id.to_string(), arity, i));
+                    for arg in args {
+                        match arg {
+                            Addr(addr) => self.code.push(SetVal(*addr)),
+                            _ => unreachable!(),
+                        }
                     }
                 }
-                _ => flat.push(Ref(h)),
-            };
+                Variable(_) => self.code.push(SetVar(i)),
+                _ => self.code.push(SetVal(i)),
+            }
         }
-        Ok(flat)
+        Ok(())
     }
 
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
+        let code = Vec::new();
         let heap = Vec::new();
-        let vars = Vars::default();
-        Self { heap, vars }
+        Self { code, heap }
     }
+}
 
-    fn set_value(&mut self, term: &Term) {
-        use Cell::*;
-        use Term::*;
-        match term {
-            Atom(id) => self.heap.push(Fun(id.to_string(), 0)),
-            Number(val) => self.heap.push(Num(*val)),
-            _ => todo!(),
+/// Take the term and the register.
+/// Store the term in the "flattened" form in the register.
+fn flatten(term: Term, registers: &mut Vec<Term>) -> usize {
+    use Term::{Addr, Struct, Variable};
+    match term {
+        Struct(id, args) => {
+            let mut flat = Vec::new();
+            for arg in args {
+                let addr = if let Variable(_) = arg {
+                    // get it's address or initialize
+                    registers
+                        .iter()
+                        .position(|reg| *reg == arg)
+                        .unwrap_or_else(|| flatten(arg, registers))
+                } else {
+                    flatten(arg, registers)
+                };
+                flat.push(Addr(addr));
+            }
+            registers.push(Struct(id, flat));
         }
+        other => registers.push(other),
     }
-
-    fn put_structure(&mut self, id: &str, arity: usize) {
-        let h = self.heap.len() + 1;
-        self.heap.push(Cell::Str(h));
-        self.heap.push(Cell::Fun(id.to_string(), arity))
-    }
-
-    fn set_variable(&mut self) {
-        let h = self.heap.len();
-        self.heap.push(Cell::Ref(h));
-    }
-
-    fn compile_program(&mut self, term: &Term) -> Result<usize, Error> {
-        use Term::*;
-        match term {
-            Atom(_) | Number(_) => self.unify_value(term),
-            Variable(id) => self.unify_variable(term),
-            Struct(id, args) => todo!(),
-            _ => unreachable!(),
-        }
-        Ok(self.heap.len() - 1)
-    }
-
-    fn unify_value(&mut self, term: &Term) {
-        todo!()
-    }
-
-    fn unify_variable(&mut self, term: &Term) {
-        todo!()
-    }
-
-    fn get_structure(&self, id: &str, arity: usize) {
-        todo!()
-    }
+    registers.len() - 1
 }
 
 fn deref(mut addr: usize, store: &[Cell]) -> usize {
@@ -176,31 +130,31 @@ mod tests {
     use super::WAM;
     use crate::{atom, structure, types::Term::*, var};
 
-    #[test]
-    fn compile_atom() {
-        use super::Cell::*;
-        let mut wam = WAM::new();
-        wam.compile_query(&atom!("a")).unwrap();
+    // #[test]
+    // fn compile_atom() {
+    //     use super::Cell::*;
+    //     let mut wam = WAM::new();
+    //     wam.compile_query(&atom!("a")).unwrap();
 
-        let expected = vec![Fun("a".to_string(), 0)];
-        assert_eq!(wam.heap, expected);
-    }
+    //     let expected = vec![Fun("a".to_string(), 0)];
+    //     assert_eq!(wam.heap, expected);
+    // }
 
-    #[test]
-    fn compile_number() {
-        use super::Cell::*;
-        let mut wam = WAM::new();
-        wam.compile_query(&Number(42)).unwrap();
+    // #[test]
+    // fn compile_number() {
+    //     use super::Cell::*;
+    //     let mut wam = WAM::new();
+    //     wam.compile_query(&Number(42)).unwrap();
 
-        let expected = vec![Num(42)];
-        assert_eq!(wam.heap, expected);
-    }
+    //     let expected = vec![Num(42)];
+    //     assert_eq!(wam.heap, expected);
+    // }
 
     #[test]
     fn compile_struct() {
-        use super::Cell::*;
+        use super::Instruction::*;
         let mut wam = WAM::new();
-        wam.compile_query(&structure!(
+        wam.compile(&structure!(
             "p",
             var!("Z"),
             structure!("h", var!("Z"), var!("W")),
@@ -208,20 +162,36 @@ mod tests {
         ))
         .unwrap();
 
-        let expected = vec![
-            Str(1),
-            Fun("h".to_string(), 2),
-            Ref(2),
-            Ref(3),
-            Str(5),
-            Fun("f".to_string(), 1),
-            Ref(3),
-            Str(8),
-            Fun("p".to_string(), 3),
-            Ref(2),
-            Str(1),
-            Str(5),
+        println!("code: {:?}", wam.code);
+
+        let instructions = vec![
+            PutStr("h".to_string(), 2, 0),
+            SetVar(1),
+            SetVar(5),
+            PutStr("f".to_string(), 1, 3),
+            SetVal(4),
+            PutStr("p".to_string(), 3, 0),
+            SetVal(1),
+            SetVal(2),
+            SetVal(3),
         ];
-        assert_eq!(wam.heap, expected);
+
+        assert_eq!(instructions, wam.code)
+
+        // let expected = vec![
+        //     Str(1),
+        //     Fun("h".to_string(), 2),
+        //     Ref(2),
+        //     Ref(3),
+        //     Str(5),
+        //     Fun("f".to_string(), 1),
+        //     Ref(3),
+        //     Str(8),
+        //     Fun("p".to_string(), 3),
+        //     Ref(2),
+        //     Str(1),
+        //     Str(5),
+        // ];
+        // assert_eq!(wam.heap, expected);
     }
 }
