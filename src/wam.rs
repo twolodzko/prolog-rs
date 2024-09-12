@@ -1,6 +1,8 @@
 // FIXME
 #![expect(dead_code)]
 
+use std::collections::VecDeque;
+
 use crate::{errors::Error, types::Term};
 
 #[derive(Debug, PartialEq)]
@@ -30,31 +32,12 @@ pub struct WAM {
 
 impl WAM {
     pub fn compile(&mut self, term: &Term) -> Result<(), Error> {
-        let mut registers = Vec::new();
-        flatten(term.clone(), &mut registers);
+        let registers = flatten(term.clone());
         println!("registers: {:?}", registers);
         self.compile_query(&registers)
     }
 
     fn compile_query(&mut self, registers: &[Term]) -> Result<(), Error> {
-        use Instruction::*;
-        use Term::*;
-        for (i, reg) in registers.iter().enumerate() {
-            match reg {
-                Struct(id, args) => {
-                    let arity = args.len();
-                    self.code.push(PutStr(id.to_string(), arity, i));
-                    for arg in args {
-                        match arg {
-                            Addr(addr) => self.code.push(SetVal(*addr)),
-                            _ => unreachable!(),
-                        }
-                    }
-                }
-                Variable(_) => self.code.push(SetVar(i)),
-                _ => self.code.push(SetVal(i)),
-            }
-        }
         Ok(())
     }
 
@@ -66,30 +49,26 @@ impl WAM {
     }
 }
 
-/// Take the term and the register.
-/// Store the term in the "flattened" form in the register.
-fn flatten(term: Term, registers: &mut Vec<Term>) -> usize {
-    use Term::{Addr, Struct, Variable};
-    match term {
-        Struct(id, args) => {
-            let mut flat = Vec::new();
+fn flatten(term: Term) -> Vec<Term> {
+    use Term::*;
+    let mut flat = vec![term];
+    let mut i = 0;
+    while i < flat.len() {
+        if let Struct(id, args) = flat[i].clone() {
+            let mut repl = Vec::new();
             for arg in args {
-                let addr = if let Variable(_) = arg {
-                    // get it's address or initialize
-                    registers
-                        .iter()
-                        .position(|reg| *reg == arg)
-                        .unwrap_or_else(|| flatten(arg, registers))
-                } else {
-                    flatten(arg, registers)
-                };
-                flat.push(Addr(addr));
+                if let Some(addr) = flat.iter().position(|rec| *rec == arg) {
+                    repl.push(Addr(addr));
+                    continue;
+                }
+                repl.push(Addr(flat.len()));
+                flat.push(arg.clone());
             }
-            registers.push(Struct(id, flat));
+            flat[i] = Struct(id, repl);
         }
-        other => registers.push(other),
+        i += 1;
     }
-    registers.len() - 1
+    flat
 }
 
 fn deref(mut addr: usize, store: &[Cell]) -> usize {
@@ -128,7 +107,7 @@ impl Vars {
 #[cfg(test)]
 mod tests {
     use super::WAM;
-    use crate::{atom, structure, types::Term::*, var};
+    use crate::{structure, types::Term::*, var};
 
     // #[test]
     // fn compile_atom() {
