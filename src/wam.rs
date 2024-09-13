@@ -55,16 +55,16 @@ fn flatten(term: Term) -> Vec<Term> {
     let mut i = 0;
     while i < flat.len() {
         if let Struct(id, args) = flat[i].clone() {
-            let mut repl = Vec::new();
+            let mut acc = Vec::new();
             for arg in args {
                 if let Some(addr) = flat.iter().position(|rec| *rec == arg) {
-                    repl.push(Addr(addr));
+                    acc.push(Addr(addr));
                     continue;
                 }
-                repl.push(Addr(flat.len()));
+                acc.push(Addr(flat.len()));
                 flat.push(arg.clone());
             }
-            flat[i] = Struct(id, repl);
+            flat[i] = Struct(id, acc);
         }
         i += 1;
     }
