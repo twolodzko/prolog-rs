@@ -11,6 +11,9 @@ and unit tests checking for ISO Prolog consistency. There are
 some differences from other Prolog implementations though,
 as described [below](#limitations-and-differences-from-other-implementations).
 
+If you are looking for a mature Prolog implementation in Rust, 
+check rather the [Scryer](https://www.scryer.pl/) Prolog.
+
 ## Usage
 
 To run the Prolog interpreter you can use the [Justfile] commands:
