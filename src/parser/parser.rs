@@ -7,7 +7,7 @@ use crate::types::Term::{self, *};
 pub fn next(lex: &mut Lexer) -> Result<Term, ParsingError> {
     let expr = match lex.next()? {
         Token::Op(id, _, _) | Token::Atom(id) => {
-            let term = read_struct(lex, id)?;
+            let term = read_functor(lex, id)?;
             if let Token::Implies = lex.peek()? {
                 lex.skip();
                 let body = read_seq(lex)?;
@@ -28,15 +28,13 @@ pub fn next(lex: &mut Lexer) -> Result<Term, ParsingError> {
     Ok(expr)
 }
 
-fn read_struct(lex: &mut Lexer, id: String) -> Result<Term, ParsingError> {
+fn read_functor(lex: &mut Lexer, id: String) -> Result<Term, ParsingError> {
     if let Ok(Token::Bracket('(')) = lex.peek() {
         lex.skip();
         let args = read_brackets(lex)?;
-        if !args.is_empty() {
-            return Ok(Struct(id, args));
-        }
+        return Ok(Functor(id, args));
     }
-    Ok(Atom(id))
+    Ok(Functor(id, Vec::new()))
 }
 
 fn read_seq(lex: &mut Lexer) -> Result<Vec<Term>, ParsingError> {
@@ -97,7 +95,7 @@ fn pratt_parser(lex: &mut Lexer, max_bp: u16) -> Result<Term, ParsingError> {
                 }
                 let rhs = pratt_parser(lex, prec)?;
 
-                lhs = Struct(op, vec![lhs, rhs])
+                lhs = Functor(op, vec![lhs, rhs])
             }
             other => return Err(ParsingError::Unexpected(other.to_string())),
         }
@@ -107,7 +105,7 @@ fn pratt_parser(lex: &mut Lexer, max_bp: u16) -> Result<Term, ParsingError> {
 
 fn read_term(lex: &mut Lexer) -> Result<Term, ParsingError> {
     let term = match lex.next()? {
-        Token::Atom(id) => read_struct(lex, id)?,
+        Token::Atom(id) => read_functor(lex, id)?,
         Token::Variable(id) => {
             if id == "_" {
                 Any
@@ -121,40 +119,40 @@ fn read_term(lex: &mut Lexer) -> Result<Term, ParsingError> {
         }
         op @ Token::Not => {
             let expr = read_operation(lex)?;
-            Struct(op.to_string(), vec![expr])
+            Functor(op.to_string(), vec![expr])
         }
         Token::Op(ref op, _, _) if op == "+" || op == "-" => match lex.peek()? {
             // a struct
             Token::Bracket('(') => {
                 lex.skip();
                 let args = read_brackets(lex)?;
-                Struct(op.to_string(), args)
+                Functor(op.to_string(), args)
             }
             // prefix operator
             _ => match read_term(lex)? {
                 Number(val) => Number(-val),
-                term => Struct(op.to_string(), vec![term]),
+                term => Functor(op.to_string(), vec![term]),
             },
         },
         Token::Op(ref op, _, _) => {
             expect(lex, Token::Bracket('('))?;
             let args = read_brackets(lex)?;
-            Struct(op.to_string(), args)
+            Functor(op.to_string(), args)
         }
         Token::Bracket('(') => {
             lex.skip();
             let body = read_brackets(lex)?;
             match body.len() {
-                0 => Atom("()".to_string()),
+                0 => Functor("()".to_string(), Vec::new()),
                 1 => body[0].clone(),
-                _ => Struct(",".to_string(), body),
+                _ => Functor(",".to_string(), body),
             }
         }
         Token::Curly('{') => {
             lex.skip();
             let body = read_seq(lex)?;
             expect(lex, Token::Curly('}'))?;
-            Struct(
+            Functor(
                 "{}".to_string(),
                 match to_and(body) {
                     Some(term) => vec![term],
@@ -202,9 +200,9 @@ fn read_list(lex: &mut Lexer) -> Result<Term, ParsingError> {
 
 /// Convert [head | tail] to a cons list.
 pub(crate) fn make_list(head: &[Term], mut tail: Term) -> Term {
-    use Term::Struct;
+    use Term::Functor;
     for elem in head.iter().rev() {
-        tail = Struct(".".to_string(), vec![elem.clone(), tail])
+        tail = Functor(".".to_string(), vec![elem.clone(), tail])
     }
     tail
 }
@@ -217,12 +215,12 @@ fn to_and(mut seq: Vec<Term>) -> Option<Term> {
         },
         None => return None,
     };
-    let init = Struct(",".to_string(), tail);
+    let init = Functor(",".to_string(), tail);
     let term = seq
         .iter()
         .rev()
         .cloned()
-        .fold(init, |acc, x| Struct(",".to_string(), vec![x, acc]));
+        .fold(init, |acc, x| Functor(",".to_string(), vec![x, acc]));
     Some(term)
 }
 
@@ -245,49 +243,49 @@ mod tests {
 
     #[test_case(
         "foo.",
-        Atom("foo".to_string());
+        Functor("foo".to_string(), Vec::new());
         "simple atom fact"
     )]
     #[test_case(
         "bar(a, 1).",
-        Struct("bar".to_string(), vec![Atom("a".to_string()), Number(1)]);
+        Functor("bar".to_string(), vec![Functor("a".to_string(), Vec::new()), Number(1)]);
         "simple struct fact"
     )]
     #[test_case(
         "yes(_).",
-        Struct("yes".to_string(), vec![Any]);
+        Functor("yes".to_string(), vec![Any]);
         "wildcard"
     )]
     #[test_case(
         "baz(a) :- foo(a).",
         Rule(
-            Box::new(Struct("baz".to_string(), vec![Atom("a".to_string())])),
-            vec![Struct("foo".to_string(), vec![Atom("a".to_string())])]
+            Box::new(Functor("baz".to_string(), vec![Functor("a".to_string(), Vec::new())])),
+            vec![Functor("foo".to_string(), vec![Functor("a".to_string(), Vec::new())])]
         );
         "simple rule"
     )]
     #[test_case(
         "bar(a,b,c) :- a,b,c.",
         Rule(
-            Box::new(Struct("bar".to_string(), vec![Atom("a".to_string()), Atom("b".to_string()), Atom("c".to_string())])),
-            vec![Atom("a".to_string()), Atom("b".to_string()), Atom("c".to_string())]
+            Box::new(Functor("bar".to_string(), vec![Functor("a".to_string(), Vec::new()), Functor("b".to_string(), Vec::new()), Functor("c".to_string(), Vec::new())])),
+            vec![Functor("a".to_string(), Vec::new()), Functor("b".to_string(), Vec::new()), Functor("c".to_string(), Vec::new())]
         );
         "rule with and"
     )]
     #[test_case(
         "fizzbuzz(X) :- X mod 3 =:= 0, X mod 5 =:= 0.",
         Rule(
-            Box::new(Struct("fizzbuzz".to_string(), vec![var!("X")])),
+            Box::new(Functor("fizzbuzz".to_string(), vec![var!("X")])),
             vec![
-                Struct("=:=".to_string(), vec![
-                    Struct("mod".to_string(), vec![
+                Functor("=:=".to_string(), vec![
+                    Functor("mod".to_string(), vec![
                         var!("X"),
                         Number(3),
                     ]),
                     Number(0)
                 ]),
-                Struct("=:=".to_string(), vec![
-                    Struct("mod".to_string(), vec![
+                Functor("=:=".to_string(), vec![
+                    Functor("mod".to_string(), vec![
                         var!("X"),
                         Number(5),
                     ]),
@@ -299,16 +297,16 @@ mod tests {
     )]
     #[test_case(
         "?- foo.",
-        Question(vec![Atom("foo".to_string())]);
+        Question(vec![Functor("foo".to_string(), Vec::new())]);
         "simple question"
     )]
     #[test_case(
         "?- 1+2*3>4.",
         Question(vec![
-            Struct(">".to_string(), vec![
-                Struct("+".to_string(), vec![
+            Functor(">".to_string(), vec![
+                Functor("+".to_string(), vec![
                     Number(1),
-                    Struct("*".to_string(), vec![
+                    Functor("*".to_string(), vec![
                         Number(2), Number(3)
                     ]),
                 ]),
@@ -320,20 +318,20 @@ mod tests {
     #[test_case(
         "?- (1+2)*3>4,a->b;c.",
         Question(vec![
-            Struct(">".to_string(), vec![
-                Struct("*".to_string(), vec![
-                    Struct("+".to_string(), vec![
+            Functor(">".to_string(), vec![
+                Functor("*".to_string(), vec![
+                    Functor("+".to_string(), vec![
                         Number(1), Number(2)
                     ]),
                     Number(3),
                 ]),
                 Number(4)
             ]),
-            Struct(";".to_string(), vec![
-                Struct("->".to_string(), vec![
-                    Atom("a".to_string()), Atom("b".to_string())
+            Functor(";".to_string(), vec![
+                Functor("->".to_string(), vec![
+                    Functor("a".to_string(), Vec::new()), Functor("b".to_string(), Vec::new())
                 ]),
-                Atom("c".to_string())
+                Functor("c".to_string(), Vec::new())
             ])
         ]);
         "question with operator precedence"
@@ -341,9 +339,9 @@ mod tests {
     #[test_case(
         "?- 1+2-3+4.",
         Question(vec![
-            Struct("+".to_string(), vec![
-                Struct("-".to_string(), vec![
-                    Struct("+".to_string(), vec![
+            Functor("+".to_string(), vec![
+                Functor("-".to_string(), vec![
+                    Functor("+".to_string(), vec![
                         Number(1), Number(2),
                     ]),
                     Number(3)
@@ -356,12 +354,12 @@ mod tests {
     #[test_case(
         "?- a;b;c;d.",
         Question(vec![
-            Struct(";".to_string(), vec![
-                Atom("a".to_string()),
-                Struct(";".to_string(), vec![
-                    Atom("b".to_string()),
-                    Struct(";".to_string(), vec![
-                        Atom("c".to_string()), Atom("d".to_string()),
+            Functor(";".to_string(), vec![
+                Functor("a".to_string(), Vec::new()),
+                Functor(";".to_string(), vec![
+                    Functor("b".to_string(), Vec::new()),
+                    Functor(";".to_string(), vec![
+                        Functor("c".to_string(), Vec::new()), Functor("d".to_string(), Vec::new()),
                     ]),
                 ]),
             ])
@@ -371,7 +369,7 @@ mod tests {
     #[test_case(
         "?- [] = [].",
         Question(vec![
-            Struct("=".to_string(), vec![
+            Functor("=".to_string(), vec![
                 Nil, Nil,
             ])
         ]);
@@ -380,9 +378,9 @@ mod tests {
     #[test_case(
         "?- [1,2] = [1,2|[]].",
         Question(vec![
-            Struct("=".to_string(), vec![
-                Struct(".".to_string(), vec![Number(1), Struct(".".to_string(), vec![Number(2), Nil])]),
-                Struct(".".to_string(), vec![Number(1), Struct(".".to_string(), vec![Number(2), Nil])]),
+            Functor("=".to_string(), vec![
+                Functor(".".to_string(), vec![Number(1), Functor(".".to_string(), vec![Number(2), Nil])]),
+                Functor(".".to_string(), vec![Number(1), Functor(".".to_string(), vec![Number(2), Nil])]),
             ])
         ]);
         "question non-empty list"
@@ -390,22 +388,22 @@ mod tests {
     #[test_case(
         "?- [1,2,[3]|[]] = [1,2|[3]],[].",
         Question(vec![
-            Struct("=".to_string(), vec![
-                Struct(".".to_string(), vec![
+            Functor("=".to_string(), vec![
+                Functor(".".to_string(), vec![
                     Number(1),
-                    Struct(".".to_string(), vec![
+                    Functor(".".to_string(), vec![
                         Number(2),
-                        Struct(".".to_string(), vec![
-                            Struct(".".to_string(), vec![Number(3), Nil]),
+                        Functor(".".to_string(), vec![
+                            Functor(".".to_string(), vec![Number(3), Nil]),
                             Nil,
                         ])
                     ])
                 ]),
-                Struct(".".to_string(), vec![
+                Functor(".".to_string(), vec![
                     Number(1),
-                    Struct(".".to_string(), vec![
+                    Functor(".".to_string(), vec![
                         Number(2),
-                        Struct(".".to_string(), vec![Number(3), Nil]),
+                        Functor(".".to_string(), vec![Number(3), Nil]),
                     ]),
                 ])
             ]),
@@ -415,15 +413,15 @@ mod tests {
     )]
     #[test_case(
         "?- +(1, 2).",
-        Question(vec![Struct("+".to_string(), vec![Number(1), Number(2)])]);
+        Question(vec![Functor("+".to_string(), vec![Number(1), Number(2)])]);
         "operator in front"
     )]
     #[test_case(
         "?- [1|X] = [1,2].",
         Question(vec![
-            Struct("=".to_string(), vec![
-                Struct(".".to_string(), vec![Number(1), var!("X")]),
-                Struct(".".to_string(), vec![Number(1), Struct(".".to_string(), vec![Number(2), Nil])]),
+            Functor("=".to_string(), vec![
+                Functor(".".to_string(), vec![Number(1), var!("X")]),
+                Functor(".".to_string(), vec![Number(1), Functor(".".to_string(), vec![Number(2), Nil])]),
             ])
         ]);
         "two lists"
@@ -431,24 +429,24 @@ mod tests {
     #[test_case(
         "max2(X,Y,Max) :- (X >= Y, !, Max = X) ; Max = Y.",
         Rule(
-            Box::new(Struct("max2".to_string(), vec![
+            Box::new(Functor("max2".to_string(), vec![
                 Variable("X".to_string(), 0),
                 Variable("Y".to_string(), 0),
                 Variable("Max".to_string(), 0),
             ])),
-            vec![Struct(";".to_string(), vec![
-                Struct(",".to_string(), vec![
-                    Struct(">=".to_string(), vec![
+            vec![Functor(";".to_string(), vec![
+                Functor(",".to_string(), vec![
+                    Functor(">=".to_string(), vec![
                         Variable("X".to_string(), 0),
                         Variable("Y".to_string(), 0),
                     ]),
-                    Atom("!".to_string()),
-                    Struct("=".to_string(), vec![
+                    Functor("!".to_string(), Vec::new()),
+                    Functor("=".to_string(), vec![
                         Variable("Max".to_string(), 0),
                         Variable("X".to_string(), 0),
                     ])
                 ]),
-                Struct("=".to_string(), vec![
+                Functor("=".to_string(), vec![
                     Variable("Max".to_string(), 0),
                     Variable("Y".to_string(), 0),
                 ])
@@ -496,7 +494,7 @@ mod tests {
 
         while let Ok(term) = super::next(&mut lex) {
             match term {
-                Atom(_) | Struct(_, _) => facts += 1,
+                Functor(_, _) => facts += 1,
                 Rule(_, _) => rules += 1,
                 Question(_) => questions += 1,
                 other => panic!("unexpected: {:?}", other),

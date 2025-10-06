@@ -1,12 +1,11 @@
 use crate::parser::is_operator;
-use std::fmt;
+use std::fmt::{self};
 
 #[derive(Clone, PartialEq)]
 pub enum Term {
     Number(i32),
-    Atom(String),              // id
-    Struct(String, Vec<Term>), // id(args...), it also is used for lists [1,2|[]] is .(1, .(2, []))
-    Nil,                       // empty list []
+    Functor(String, Vec<Term>), // id(args...), it also is used for lists [1,2|[]] is .(1, .(2, []))
+    Nil,                        // empty list []
     // special forms
     Variable(String, usize),    // Id
     Any,                        // wildcard _
@@ -19,8 +18,7 @@ impl fmt::Display for Term {
         use Term::*;
         match self {
             Any => write!(f, "_"),
-            Atom(id) => write!(f, "{}", id),
-            term @ Struct(name, _) if name == "." => {
+            term @ Functor(name, _) if name == "." => {
                 let (list, last) = list_to_vec(term);
                 let s = join(&list);
                 match last {
@@ -28,14 +26,20 @@ impl fmt::Display for Term {
                     None => write!(f, "[{}]", s),
                 }
             }
-            Struct(op, args) if args.len() == 2 && is_operator(op) => {
+            Functor(op, args) if args.len() == 2 && is_operator(op) => {
                 if op.chars().any(|c| c.is_alphabetic()) {
                     write!(f, "{} {} {}", args[0], op, args[1])
                 } else {
                     write!(f, "{}{}{}", args[0], op, args[1])
                 }
             }
-            Struct(name, args) => write!(f, "{}({})", name, join(args)),
+            Functor(name, args) => {
+                if args.is_empty() {
+                    write!(f, "{}", name)
+                } else {
+                    write!(f, "{}({})", name, join(args))
+                }
+            }
             Variable(id, _) => write!(f, "{}", id),
             Number(val) => write!(f, "{}", val),
             Nil => write!(f, "[]"),
@@ -47,18 +51,29 @@ impl fmt::Display for Term {
 
 impl fmt::Debug for Term {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self)
+        use Term::{Functor, Question};
+        match self {
+            Functor(name, args) => {
+                if args.is_empty() {
+                    write!(f, "{}/0", name)
+                } else {
+                    write!(f, "{}/{}({})", name, args.len(), debug_join(args))
+                }
+            }
+            Question(body) => write!(f, "?- {}.", debug_join(body)),
+            _ => write!(f, "{}", self),
+        }
     }
 }
 
 fn list_to_vec(mut term: &Term) -> (Vec<Term>, Option<Term>) {
-    use Term::{Nil, Struct};
+    use Term::{Functor, Nil};
 
     let mut res = Vec::new();
     let mut last = None;
     loop {
         match term {
-            Struct(id, args) => {
+            Functor(id, args) => {
                 if id == "." && args.len() == 2 {
                     res.push(args[0].clone());
                     term = &args[1];
@@ -74,13 +89,23 @@ fn list_to_vec(mut term: &Term) -> (Vec<Term>, Option<Term>) {
     (res, last)
 }
 
-pub(crate) fn join<T>(seq: &[T]) -> String
+fn join<T>(seq: &[T]) -> String
 where
     T: fmt::Display,
 {
     seq.iter()
         .map(|t| t.to_string())
-        .reduce(|acc, x| format!("{},{}", acc, x))
+        .reduce(|acc, x| format!("{}, {}", acc, x))
+        .unwrap_or_default()
+}
+
+fn debug_join<T>(seq: &[T]) -> String
+where
+    T: fmt::Debug,
+{
+    seq.iter()
+        .map(|x| format!("{:?}", x))
+        .reduce(|acc, x| format!("{}, {}", acc, x))
         .unwrap_or_default()
 }
 
@@ -99,9 +124,9 @@ impl Iterator for ConsIter {
     type Item = Term;
 
     fn next(&mut self) -> Option<Self::Item> {
-        use Term::{Nil, Struct};
+        use Term::{Functor, Nil};
         match self.term.clone()? {
-            Struct(id, args) if args.len() == 2 && id == "." => {
+            Functor(id, args) if args.len() == 2 && id == "." => {
                 self.term = match &args[1] {
                     Nil => None,
                     other => Some(other.clone()),
@@ -126,14 +151,14 @@ macro_rules! var {
 #[macro_export]
 macro_rules! atom {
     ( $id:expr ) => {
-        Atom($id.to_string())
+        Functor($id.to_string(), Vec::new())
     };
 }
 
 #[macro_export]
 macro_rules! structure {
     ( $id:expr , $($x:expr),+ $(,)? ) => {
-        Struct($id.to_string(), vec![$($x),+])
+        Functor($id.to_string(), vec![$($x),+])
     };
 }
 
@@ -189,19 +214,19 @@ mod tests {
     #[test]
     fn macros_expansion() {
         let tt = [
-            (atom!("foo"), Atom("foo".to_string())),
+            (atom!("foo"), Functor("foo".to_string(), Vec::new())),
             (var!("Bar"), Variable("Bar".to_string(), 0)),
             (
                 structure!("foo", Number(1)),
-                Struct("foo".to_string(), vec![Number(1)]),
+                Functor("foo".to_string(), vec![Number(1)]),
             ),
             (
                 structure!("bar", Number(1), structure!("foo", Number(2), var!("X"))),
-                Struct(
+                Functor(
                     "bar".to_string(),
                     vec![
                         Number(1),
-                        Struct(
+                        Functor(
                             "foo".to_string(),
                             vec![Number(2), Variable("X".to_string(), 0)],
                         ),
@@ -210,7 +235,7 @@ mod tests {
             ),
             (
                 structure!(".", Number(1), Nil),
-                Struct(".".to_string(), vec![Number(1), Nil]),
+                Functor(".".to_string(), vec![Number(1), Nil]),
             ),
         ];
         for (input, expected) in tt {

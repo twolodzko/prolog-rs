@@ -1,12 +1,10 @@
 use prologrs::{
     database::Database,
-    errors::Error,
     parser::{
-        self, switch_prompt, Lexer,
+        self, Lexer,
         ParsingError::{EndOfInput, Interrupted},
         StdinReader,
     },
-    solver::{eval_expr, eval_file, eval_main, Solver},
 };
 use std::env;
 
@@ -32,57 +30,7 @@ fn repl(db: Database) {
                 continue;
             }
         };
-        let solver = match eval_expr(&expr, db.clone()) {
-            Ok(Some(solver)) => solver,
-            Ok(None) => continue,
-            Err(msg) => {
-                lex.drain();
-                err!(msg);
-                continue;
-            }
-        };
-        if let Err(err) = print_solutions(solver, lex) {
-            lex.drain();
-            err!(err);
-        }
-    }
-}
-
-fn print_solutions(mut solver: Solver, lex: &mut Lexer) -> Result<(), Error> {
-    loop {
-        match solver.next() {
-            Some(Ok(vars)) => {
-                if vars.is_empty() {
-                    println!("yes");
-                    return Ok(());
-                }
-                for (k, v) in vars.iter() {
-                    println!("{} = {}", k, v);
-                }
-            }
-            None => {
-                println!("no");
-                return Ok(());
-            }
-            Some(Err(err)) => {
-                return Err(err);
-            }
-        }
-
-        // wait for input what to do next
-        switch_prompt();
-        lex.drain();
-        let result = lex.read_char();
-        switch_prompt();
-
-        match result {
-            Ok(';' | '\n') => (),
-            Ok(_) => return Ok(()),
-            Err(err) => {
-                lex.drain();
-                return Err(err.into());
-            }
-        }
+        println!("{:?}", expr);
     }
 }
 
@@ -113,23 +61,23 @@ fn main() {
 
     if !no_std {
         let stdlib = "lib/stdlib.pl";
-        if let Err(msg) = eval_file(stdlib, db.clone()) {
-            err!(format!("failed to load stdlib: {}", msg));
-        }
+        // if let Err(msg) = eval_file(stdlib, db.clone()) {
+        //     err!(format!("failed to load stdlib: {}", msg));
+        // }
     }
 
     for path in files {
-        if let Err(msg) = eval_file(&path, db.clone()) {
-            err!(msg);
-            std::process::exit(1);
-        }
+        // if let Err(msg) = eval_file(&path, db.clone()) {
+        //     err!(msg);
+        //     std::process::exit(1);
+        // }
     }
 
     if exit {
-        if let Err(msg) = eval_main(db) {
-            err!(msg);
-            std::process::exit(1);
-        }
+        // if let Err(msg) = eval_main(db) {
+        //     err!(msg);
+        //     std::process::exit(1);
+        // }
     } else {
         repl(db)
     }

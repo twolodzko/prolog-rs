@@ -21,8 +21,7 @@ impl fmt::Display for Error {
             ArithError(term) => write!(f, "{} cannot be part of an arithmetic expression", term),
             UnsetVar(var) => write!(f, "variable {} was not instantiated", var),
             Unknown(term) => match term {
-                Term::Atom(id) => write!(f, "unknown procedure: {}/0", id),
-                Term::Struct(id, args) => write!(f, "unknown procedure: {}/{}", id, args.len()),
+                Term::Functor(id, args) => write!(f, "unknown procedure: {}/{}", id, args.len()),
                 _ => unreachable!(),
             },
             NoMatch => write!(f, "query returned no matches"),
