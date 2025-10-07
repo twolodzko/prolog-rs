@@ -1,5 +1,5 @@
 use prologrs::{
-    database::Database,
+    compiler::Heap,
     parser::{
         self, Lexer,
         ParsingError::{EndOfInput, Interrupted},
@@ -14,7 +14,7 @@ macro_rules! err {
     };
 }
 
-fn repl(db: Database) {
+fn repl(heap: &mut Heap) {
     println!("Press ^C to exit. Press enter key or type ; for more solutions.\n");
 
     let mut reader = StdinReader::new().unwrap();
@@ -31,6 +31,8 @@ fn repl(db: Database) {
             }
         };
         println!("{:?}", expr);
+        heap.compile(expr);
+        println!("---> {:?}", heap);
     }
 }
 
@@ -57,7 +59,7 @@ fn main() {
         }
     }
 
-    let db = Database::new();
+    let heap = &mut Heap::default();
 
     if !no_std {
         let stdlib = "lib/stdlib.pl";
@@ -79,6 +81,6 @@ fn main() {
         //     std::process::exit(1);
         // }
     } else {
-        repl(db)
+        repl(heap)
     }
 }

@@ -7,10 +7,12 @@ pub enum Term {
     Functor(String, Vec<Term>), // id(args...), it also is used for lists [1,2|[]] is .(1, .(2, []))
     Nil,                        // empty list []
     // special forms
-    Variable(String, usize),    // Id
+    Variable(String),           // Id
     Any,                        // wildcard _
     Rule(Box<Term>, Vec<Term>), // head :- body
     Question(Vec<Term>),        // ?- body.
+    // internal
+    Reference(usize), // placeholder for a variable
 }
 
 impl fmt::Display for Term {
@@ -40,11 +42,12 @@ impl fmt::Display for Term {
                     write!(f, "{}({})", name, join(args))
                 }
             }
-            Variable(id, _) => write!(f, "{}", id),
+            Variable(id) => write!(f, "{}", id),
             Number(val) => write!(f, "{}", val),
             Nil => write!(f, "[]"),
             Rule(head, body) => write!(f, "{} :- {}.", head, join(body)),
             Question(body) => write!(f, "?- {}.", join(body)),
+            Reference(id) => write!(f, "#{}", id),
         }
     }
 }
@@ -144,7 +147,7 @@ impl Iterator for ConsIter {
 #[macro_export]
 macro_rules! var {
     ( $id:expr ) => {
-        Variable($id.to_string(), 0)
+        Variable($id.to_string())
     };
 }
 
@@ -194,7 +197,7 @@ mod tests {
     )]
     #[test_case(
         structure!("foo", atom!("a"), Number(-5)),
-        "foo(a,-5)";
+        "foo(a, -5)";
         "simple struct"
     )]
     #[test_case(
@@ -215,7 +218,7 @@ mod tests {
     fn macros_expansion() {
         let tt = [
             (atom!("foo"), Functor("foo".to_string(), Vec::new())),
-            (var!("Bar"), Variable("Bar".to_string(), 0)),
+            (var!("Bar"), Variable("Bar".to_string())),
             (
                 structure!("foo", Number(1)),
                 Functor("foo".to_string(), vec![Number(1)]),
@@ -228,7 +231,7 @@ mod tests {
                         Number(1),
                         Functor(
                             "foo".to_string(),
-                            vec![Number(2), Variable("X".to_string(), 0)],
+                            vec![Number(2), Variable("X".to_string())],
                         ),
                     ],
                 ),
