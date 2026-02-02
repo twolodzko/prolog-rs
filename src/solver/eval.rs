@@ -55,7 +55,7 @@ pub fn eval_expr(term: &Term, mut db: Database) -> Result<Option<Solver>, Error>
             Ok(Some(solver))
         }
         _ => {
-            db.borrow_mut().assert(term)?;
+            db.borrow_mut().assert(term.clone())?;
             Ok(None)
         }
     }

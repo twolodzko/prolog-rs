@@ -2515,7 +2515,7 @@ fn all_solutions(knowledge: &str, query: &str, expected: Result<Vec<Vars>, Error
             Err(msg) => panic!("{}", msg),
             Ok(ref expr) => match expr {
                 Question(_) => unreachable!(),
-                term => db.assert(term).unwrap(),
+                term => db.assert(term.clone()).unwrap(),
             },
         }
     }

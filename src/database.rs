@@ -1,5 +1,5 @@
 use crate::{errors::Error, types::Term};
-use std::{cell::RefCell, collections::HashMap, ops::Deref, rc::Rc};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
 /// The name and arity of the predicate.
 type Key = (String, usize);
@@ -15,17 +15,17 @@ impl Database {
     }
 
     /// Assert (record) the predicate in the database.
-    pub fn assert(&mut self, term: &Term) -> Result<(), Error> {
+    pub fn assert(&mut self, term: Term) -> Result<(), Error> {
         use Term::*;
-        match term {
-            Atom(id) => self.insert(id.to_string(), 0, term.clone()),
-            Struct(id, args) => self.insert(id.to_string(), args.len(), term.clone()),
-            Rule(head, _) => match head.deref() {
-                Atom(id) => self.insert(id.to_string(), 0, term.clone()),
-                Struct(id, args) => self.insert(id.to_string(), args.len(), term.clone()),
-                other => return Err(Error::TypeError(other.clone())),
+        match &term {
+            Atom(id) => self.insert(id.to_string(), 0, term),
+            Struct(id, args) => self.insert(id.to_string(), args.len(), term),
+            Rule(head, _) => match head.as_ref() {
+                Atom(id) => self.insert(id.to_string(), 0, term),
+                Struct(id, args) => self.insert(id.to_string(), args.len(), term),
+                _ => return Err(Error::TypeError(term)),
             },
-            other => return Err(Error::TypeError(other.clone())),
+            _ => return Err(Error::TypeError(term)),
         }
         Ok(())
     }

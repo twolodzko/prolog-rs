@@ -153,7 +153,7 @@ impl ByrdBox {
                 if this.args.is_empty() {
                     atom!(this.id)
                 } else {
-                    Struct(this.id.clone(), vars.subst_all(&this.args))
+                    Struct(this.id.to_string(), vars.subst_all(&this.args))
                 }
             }
             Not(this, _) => Struct("\\+".to_string(), vec![this.materialize(vars)]),
@@ -483,7 +483,7 @@ impl Eval {
             "=" => Ok(unify(&args[0], &args[1], vars)),
             "is" => {
                 let (lhs, rhs) = (&args[0], &args[1]);
-                let result = math::eval(rhs.clone(), vars)?;
+                let result = math::eval(rhs, vars)?;
                 match lhs {
                     Variable(_, _) => match vars.get(lhs) {
                         Some(val) => Ok(val == &result),
@@ -692,7 +692,7 @@ impl And {
         // so it is enough to check the first one
         self.goals
             .first()
-            .map_or(false, |goal| matches!(goal, ByrdBox::Cut(_)))
+            .is_some_and(|goal| matches!(goal, ByrdBox::Cut(_)))
     }
 
     fn new(goals: Vec<ByrdBox>) -> Self {
@@ -783,7 +783,7 @@ impl Var {
         if self.init_val(vars)? {
             return self.call(vars);
         }
-        let var = vars.find_origin(self.var.clone());
+        let var = vars.find_origin(&self.var);
         Err(Error::UnsetVar(var.to_string()))
     }
 

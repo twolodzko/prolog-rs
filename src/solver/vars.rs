@@ -60,7 +60,7 @@ impl Vars {
         }
     }
 
-    pub fn iter(&self) -> std::slice::Iter<(Term, Term)> {
+    pub fn iter(&'_ self) -> std::slice::Iter<'_, (Term, Term)> {
         self.map.iter()
     }
 
@@ -81,11 +81,12 @@ impl Vars {
     }
 
     /// Recursively find the earliest key pointing to this value.
-    pub(super) fn find_origin(&self, mut val: Term) -> Term {
+    pub(super) fn find_origin(&self, val: &Term) -> Term {
+        let mut val = val;
         loop {
-            match self.map.iter().find(|(_, v)| *v == val) {
-                None => return val,
-                Some((key, _)) => val = key.clone(),
+            match self.map.iter().find(|(_, v)| v == val) {
+                None => return val.clone(),
+                Some((key, _)) => val = key,
             }
         }
     }
