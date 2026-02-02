@@ -1,14 +1,12 @@
-use std::borrow::Cow;
-
 use super::Vars;
 use crate::{errors::Error, types::Term};
 
 pub(super) fn eval(term: &Term, vars: &Vars) -> Result<Term, Error> {
     use Term::*;
-    let mut term = Cow::Borrowed(term);
+    let mut term = term;
     loop {
-        match term.as_ref() {
-            Number(_) => return Ok(term.into_owned()),
+        match term {
+            Number(_) => return Ok(term.clone()),
             Struct(ref id, ref args) if args.len() == 1 => {
                 let num = match eval(&args[0], vars)? {
                     Number(val) => val,
@@ -19,7 +17,7 @@ pub(super) fn eval(term: &Term, vars: &Vars) -> Result<Term, Error> {
                     "+" => num,
                     "abs" => num.abs(),
                     "sign" => num.signum(),
-                    _ => return Err(Error::TypeError(term.into_owned())),
+                    _ => return Err(Error::TypeError(term.clone())),
                 };
                 return Ok(Number(val));
             }
@@ -36,11 +34,11 @@ pub(super) fn eval(term: &Term, vars: &Vars) -> Result<Term, Error> {
                     "div" => return Ok(Number(lhs.div_euclid(rhs))),
                     "rem" => return Ok(Number(lhs % rhs)),
                     "mod" => return Ok(Number(lhs.rem_euclid(rhs))),
-                    _ => return Err(Error::ArithError(term.into_owned())),
+                    _ => return Err(Error::ArithError(term.clone())),
                 }
             }
             Variable(_, _) => match vars.get(&term) {
-                Some(val) => term = Cow::Borrowed(val),
+                Some(val) => term = val,
                 None => {
                     return {
                         let var = vars.find_origin(&term);
@@ -48,7 +46,7 @@ pub(super) fn eval(term: &Term, vars: &Vars) -> Result<Term, Error> {
                     }
                 }
             },
-            _ => return Err(Error::ArithError(term.into_owned())),
+            _ => return Err(Error::ArithError(term.clone())),
         }
     }
 }
