@@ -37,11 +37,11 @@ pub(super) fn eval(term: &Term, vars: &Vars) -> Result<Term, Error> {
                     _ => return Err(Error::ArithError(term.clone())),
                 }
             }
-            Variable(_, _) => match vars.get(&term) {
+            Variable(_, _) => match vars.get(term) {
                 Some(val) => term = val,
                 None => {
                     return {
-                        let var = vars.find_origin(&term);
+                        let var = vars.find_origin(term);
                         Err(Error::UnsetVar(var.to_string()))
                     }
                 }

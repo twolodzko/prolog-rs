@@ -6,7 +6,7 @@ use prologrs::{
         ParsingError::{EndOfInput, Interrupted},
         StdinReader,
     },
-    solver::{eval_expr, eval_file, eval_main, Solver},
+    solver::{compile, Solver},
 };
 use std::env;
 
@@ -32,7 +32,7 @@ fn repl(db: Database) {
                 continue;
             }
         };
-        let solver = match eval_expr(&expr, db.clone()) {
+        let solver = match compile::expr(&expr, db.clone()) {
             Ok(Some(solver)) => solver,
             Ok(None) => continue,
             Err(msg) => {
@@ -113,20 +113,20 @@ fn main() {
 
     if !no_std {
         let stdlib = "lib/stdlib.pl";
-        if let Err(msg) = eval_file(stdlib, db.clone()) {
+        if let Err(msg) = compile::file(stdlib, db.clone()) {
             err!(format!("failed to load stdlib: {}", msg));
         }
     }
 
     for path in files {
-        if let Err(msg) = eval_file(&path, db.clone()) {
+        if let Err(msg) = compile::file(&path, db.clone()) {
             err!(msg);
             std::process::exit(1);
         }
     }
 
     if exit {
-        if let Err(msg) = eval_main(db) {
+        if let Err(msg) = compile::main(db) {
             err!(msg);
             std::process::exit(1);
         }

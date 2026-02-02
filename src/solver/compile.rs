@@ -8,19 +8,16 @@ use crate::{
 };
 use std::borrow::BorrowMut;
 
-pub fn eval_file(path: &str, db: Database) -> Result<(), Error> {
+pub fn file(path: &str, db: Database) -> Result<(), Error> {
     use parser::ParsingError::*;
 
-    let mut reader = match FileReader::from(path) {
-        Ok(reader) => reader,
-        Err(err) => return Err(err.into()),
-    };
+    let mut reader = FileReader::from(path)?;
     let lex = &mut Lexer::from(&mut reader);
 
     loop {
         match parser::next(lex) {
             Ok(ref expr) => {
-                if let Some(mut solver) = eval_expr(expr, db.clone())? {
+                if let Some(mut solver) = super::expr(expr, db.clone())? {
                     match solver.next() {
                         Some(Ok(_)) => (),
                         Some(Err(err)) => return Err(err),
@@ -34,9 +31,9 @@ pub fn eval_file(path: &str, db: Database) -> Result<(), Error> {
     }
 }
 
-pub fn eval_main(db: Database) -> Result<(), Error> {
+pub fn main(db: Database) -> Result<(), Error> {
     if db.query(&atom!("main")).is_some() {
-        match eval_expr(&Question(vec![atom!("main")]), db) {
+        match expr(&Question(vec![atom!("main")]), db) {
             Ok(Some(mut solver)) => match solver.next() {
                 Some(_) => (),
                 None => return Err(Error::NoMatch),
@@ -48,7 +45,7 @@ pub fn eval_main(db: Database) -> Result<(), Error> {
     Ok(())
 }
 
-pub fn eval_expr(term: &Term, mut db: Database) -> Result<Option<Solver>, Error> {
+pub fn expr(term: &Term, mut db: Database) -> Result<Option<Solver>, Error> {
     match term {
         Question(goals) => {
             let solver = ByrdBox::from(goals, db.clone())?.iter();

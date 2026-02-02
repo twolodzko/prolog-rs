@@ -1,12 +1,12 @@
 mod byrd;
 mod cmp;
-mod eval;
+pub mod compile;
 mod math;
 mod unify;
 mod vars;
 
 pub use byrd::{ByrdBox, Solver};
-pub use eval::{eval_expr, eval_file, eval_main};
+pub use compile::{expr, file, main};
 pub(crate) use unify::unify;
 pub use vars::Vars;
 

@@ -1,4 +1,4 @@
-use super::eval_file;
+use super::file;
 use crate::{
     atom,
     database::Database,
@@ -6,7 +6,7 @@ use crate::{
     parser::{self, Lexer, ParsingError, StringReader},
     solver::{
         byrd::ByrdBox,
-        eval_expr, unify,
+        compile, expr, unify,
         vars::{self, Vars},
     },
     structure,
@@ -739,7 +739,7 @@ fn parse_and_eval(input: &str, expected: Option<Result<Vars, Error>>) {
     loop {
         match parser::next(lex) {
             Ok(ref expr) => {
-                if let Some(mut solver) = eval_expr(expr, db.clone()).unwrap() {
+                if let Some(mut solver) = compile::expr(expr, db.clone()).unwrap() {
                     let result = solver.next();
                     if result != expected {
                         panic!(
@@ -2507,7 +2507,7 @@ fn all_solutions(knowledge: &str, query: &str, expected: Result<Vec<Vars>, Error
     }
 
     // load standard library
-    eval_file("lib/stdlib.pl", db.clone()).unwrap();
+    file("lib/stdlib.pl", db.clone()).unwrap();
 
     loop {
         match parser::next(&mut lex) {
@@ -2538,8 +2538,8 @@ fn all_solutions(knowledge: &str, query: &str, expected: Result<Vec<Vars>, Error
 fn integration_test(path: &str) {
     let db = Database::new();
     // load standard library
-    eval_file("lib/stdlib.pl", db.clone()).unwrap();
-    if let Err(err) = eval_file(path, db) {
+    file("lib/stdlib.pl", db.clone()).unwrap();
+    if let Err(err) = file(path, db) {
         panic!("Unexpected error: {}", err)
     }
 }
@@ -2548,11 +2548,11 @@ fn integration_test(path: &str) {
 fn queens_test() {
     let db = Database::new();
     // load standard library
-    eval_file("lib/stdlib.pl", db.clone()).unwrap();
-    eval_file("examples/eight_queens.pl", db.clone()).unwrap();
+    file("lib/stdlib.pl", db.clone()).unwrap();
+    file("examples/eight_queens.pl", db.clone()).unwrap();
 
     // using 6 queens to make it faster
-    let solver = eval_expr(
+    let solver = expr(
         &Term::Question(vec![structure!("queens", Number(6), init_var!("Qs"))]),
         db,
     )

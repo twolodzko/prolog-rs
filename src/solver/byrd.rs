@@ -1,4 +1,4 @@
-use super::{eval_file, unify, vars::Vars, TRACE};
+use super::{file, unify, vars::Vars, TRACE};
 use crate::{
     atom,
     database::Database,
@@ -22,8 +22,8 @@ pub type Status = bool;
 pub enum ByrdBox {
     /// Does classical search and unification for the goal.
     Unify(Unify),
-    /// Evaluates a function with special evaluation rules.
-    Eval(Eval),
+    /// Call a function with special evaluation rules.
+    Call(Call),
     /// Negates the result of the contained goal, then it changes
     /// the boolean flag forcing every coming call to fail.
     Not(Box<ByrdBox>, bool),
@@ -52,7 +52,7 @@ impl ByrdBox {
         use ByrdBox::*;
         let mut call = || match self {
             Unify(this) => this.call(vars),
-            Eval(this) => this.call(vars),
+            Call(this) => this.call(vars),
             Not(_, true) => Ok(false),
             Not(this, done) => {
                 *done = true;
@@ -97,7 +97,7 @@ impl ByrdBox {
         use ByrdBox::*;
         match self {
             Unify(this) => this.goal = vars.init(&this.goal),
-            Eval(this) => this.args = vars.init_all(&this.args),
+            Call(this) => this.args = vars.init_all(&this.args),
             Not(this, _) => this.init(vars),
             And(this) => this.init(vars),
             Or(this) => {
@@ -149,7 +149,7 @@ impl ByrdBox {
         use Term::*;
         match self {
             Unify(this) => vars.subst(&this.goal),
-            Eval(this) => {
+            Call(this) => {
                 if this.args.is_empty() {
                     atom!(this.id)
                 } else {
@@ -177,7 +177,7 @@ impl ByrdBox {
             // special atoms
             Atom(id) if id == "!" => ByrdBox::Cut(None),
             Atom(id) if id == "nl" || id == "fail" || id == "trace" || id == "notrace" => {
-                ByrdBox::Eval(Eval::new(id.to_string(), Vec::new(), db))
+                ByrdBox::Call(Call::new(id.to_string(), Vec::new(), db))
             }
             // unary functions
             Struct(id, args) if args.len() == 1 && id == "\\+" => {
@@ -193,7 +193,7 @@ impl ByrdBox {
                         || id == "var"
                         || id == "atom") =>
             {
-                ByrdBox::Eval(Eval::new(id.to_string(), args.clone(), db))
+                ByrdBox::Call(Call::new(id.to_string(), args.clone(), db))
             }
             // binary functions
             Struct(id, args)
@@ -206,7 +206,7 @@ impl ByrdBox {
                         || id == "=="
                         || id == "@<") =>
             {
-                ByrdBox::Eval(Eval::new(id.to_string(), args.clone(), db))
+                ByrdBox::Call(Call::new(id.to_string(), args.clone(), db))
             }
             Struct(id, ref args) if args.len() == 2 && id == ";" => ByrdBox::Or(Or::new(args, db)?),
             Struct(id, ref args) if args.len() == 2 && id == "->" => {
@@ -220,7 +220,7 @@ impl ByrdBox {
             },
             // functions with other number of arguments
             Struct(id, args) if args.len() == 3 && id == "functor" => {
-                ByrdBox::Eval(Eval::new(id.to_string(), args.clone(), db))
+                ByrdBox::Call(Call::new(id.to_string(), args.clone(), db))
             }
             Struct(id, args) if id == "," => Self::from(args, db)?,
             // standalone variable
@@ -468,13 +468,13 @@ impl Clause {
 /// and `done` is the status flag signaling that it was already evaluated, so there is nothing
 /// more to explore here (to avoid infinite loops when calling it again).
 #[derive(Clone, Debug)]
-struct Eval {
+struct Call {
     id: String,
     args: Vec<Term>,
     db: Database,
 }
 
-impl Eval {
+impl Call {
     fn call(&mut self, vars: &mut Vars) -> Result<Status, Error> {
         let args = vars.subst_all(&self.args);
 
@@ -529,14 +529,14 @@ impl Eval {
                 match &args[0] {
                     Atom(path) => {
                         let path = assure_pl_extension(path);
-                        eval_file(&path, self.db.clone())?;
+                        file(&path, self.db.clone())?;
                     }
                     list @ Struct(id, _) if id == "." => {
                         for path in ConsIter::from(list.clone()) {
                             match path {
                                 Atom(ref path) => {
                                     let path = assure_pl_extension(path);
-                                    eval_file(&path, self.db.clone())?;
+                                    file(&path, self.db.clone())?;
                                 }
                                 other => return Err(Error::TypeError(other.clone())),
                             }
