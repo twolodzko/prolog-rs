@@ -5,7 +5,6 @@ mod parser;
 mod reader;
 
 pub use errors::*;
-pub use lexer::is_operator;
-pub use lexer::Lexer;
+pub use lexer::{Lexer, is_operator};
 pub use parser::*;
 pub use reader::*;

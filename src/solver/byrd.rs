@@ -1,4 +1,4 @@
-use super::{file, unify, vars::Vars, TRACE};
+use super::{TRACE, file, unify, vars::Vars};
 use crate::{
     atom,
     database::Database,
@@ -180,8 +180,8 @@ impl ByrdBox {
                 ByrdBox::Call(Call::new(id.to_string(), Vec::new(), db))
             }
             // unary functions
-            Struct(id, args) if args.len() == 1 && id == "\\+" => {
-                let body = ByrdBox::new(&args[0], db)?;
+            Struct(id, args) if let Some([a]) = args.as_array() && id == "\\+" => {
+                let body = ByrdBox::new(a, db)?;
                 ByrdBox::Not(Box::new(body), false)
             }
             Struct(id, args)
@@ -208,14 +208,14 @@ impl ByrdBox {
             {
                 ByrdBox::Call(Call::new(id.to_string(), args.clone(), db))
             }
-            Struct(id, ref args) if args.len() == 2 && id == ";" => ByrdBox::Or(Or::new(args, db)?),
-            Struct(id, ref args) if args.len() == 2 && id == "->" => {
+            Struct(id, args) if args.len() == 2 && id == ";" => ByrdBox::Or(Or::new(args, db)?),
+            Struct(id, args) if let Some([a, b]) = args.as_array() && id == "->" => {
                 // `If -> Else` is a syntactic sugar for `If, !, Else`
                 // it's implemented like this to be consistent with the ISO Prolog standard.
                 // For `->(If, Then) :- If, !, Then.` the cut does not propagate properly,
                 // and `If -> Then ; Else` does not pass the ISO Prolog tests by running also the Else branch.
-                let cond = ByrdBox::new(&args[0], db.clone())?;
-                let then = ByrdBox::new(&args[1], db.clone())?;
+                let cond = ByrdBox::new(a, db.clone())?;
+                let then = ByrdBox::new(b, db.clone())?;
                 ByrdBox::And(And::new(vec![cond, ByrdBox::Cut(None), then]))
             },
             // functions with other number of arguments
@@ -234,8 +234,8 @@ impl ByrdBox {
 
     pub fn from(terms: &[Term], db: Database) -> Result<Self, Error> {
         let goals = boxes_from(terms, db)?;
-        if goals.len() == 1 {
-            Ok(goals[0].clone())
+        if let Some([g]) = goals.as_array() {
+            Ok(g.clone())
         } else {
             Ok(Self::And(And::new(goals)))
         }
@@ -334,10 +334,10 @@ impl Unify {
         vars.branch();
         let prev_vars = vars.len();
         loop {
-            if let Some(clause) = self.clause.as_mut() {
-                if clause.call(vars)? {
-                    return Ok(true);
-                }
+            if let Some(clause) = self.clause.as_mut()
+                && clause.call(vars)?
+            {
+                return Ok(true);
             }
 
             // reset vars (it's append only, so we can truncate it to the previous state)
@@ -353,10 +353,10 @@ impl Unify {
     }
 
     fn next_clause(&mut self, vars: &Vars) -> Result<bool, Error> {
-        if let Some(clause) = self.clause.as_mut() {
-            if clause.next_clause(vars)? {
-                return Ok(true);
-            }
+        if let Some(clause) = self.clause.as_mut()
+            && clause.next_clause(vars)?
+        {
+            return Ok(true);
         }
         self.queue_next(vars)
     }

@@ -28,11 +28,14 @@ impl fmt::Display for Term {
                     None => write!(f, "[{}]", s),
                 }
             }
-            Struct(op, args) if args.len() == 2 && is_operator(op) => {
+            Struct(op, args)
+                if let Some([a, b]) = args.as_array()
+                    && is_operator(op) =>
+            {
                 if op.chars().any(|c| c.is_alphabetic()) {
-                    write!(f, "{} {} {}", args[0], op, args[1])
+                    write!(f, "{} {} {}", a, op, b)
                 } else {
-                    write!(f, "{}{}{}", args[0], op, args[1])
+                    write!(f, "{}{}{}", a, op, b)
                 }
             }
             Struct(name, args) => write!(f, "{}({})", name, join(args)),
@@ -59,9 +62,11 @@ fn list_to_vec(mut term: &Term) -> (Vec<Term>, Option<Term>) {
     loop {
         match term {
             Struct(id, args) => {
-                if id == "." && args.len() == 2 {
-                    res.push(args[0].clone());
-                    term = &args[1];
+                if id == "."
+                    && let Some([a, b]) = args.as_array()
+                {
+                    res.push(a.clone());
+                    term = b;
                 }
             }
             Nil => break,
@@ -101,12 +106,15 @@ impl Iterator for ConsIter {
     fn next(&mut self) -> Option<Self::Item> {
         use Term::{Nil, Struct};
         match self.term.clone()? {
-            Struct(id, args) if args.len() == 2 && id == "." => {
-                self.term = match &args[1] {
+            Struct(id, ref args)
+                if let Some([a, b]) = args.as_array()
+                    && id == "." =>
+            {
+                self.term = match b {
                     Nil => None,
                     other => Some(other.clone()),
                 };
-                Some(args[0].clone())
+                Some(a.clone())
             }
             other => {
                 self.term = None;

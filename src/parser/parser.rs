@@ -1,6 +1,6 @@
 use super::{
-    lexer::{Lexer, Token},
     ParsingError,
+    lexer::{Lexer, Token},
 };
 use crate::types::Term::{self, *};
 
@@ -237,7 +237,7 @@ fn expect(lex: &mut Lexer, expected: Token) -> Result<(), ParsingError> {
 #[cfg(test)]
 mod tests {
     use crate::{
-        parser::{lexer::Lexer, FileReader, StringReader},
+        parser::{FileReader, StringReader, lexer::Lexer},
         types::Term::{self, *},
         var,
     };

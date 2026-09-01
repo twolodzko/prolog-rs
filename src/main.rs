@@ -2,11 +2,11 @@ use prologrs::{
     database::Database,
     errors::Error,
     parser::{
-        self, switch_prompt, Lexer,
+        self, Lexer,
         ParsingError::{EndOfInput, Interrupted},
-        StdinReader,
+        StdinReader, switch_prompt,
     },
-    solver::{compile, Solver},
+    solver::{Solver, compile},
 };
 use std::env;
 

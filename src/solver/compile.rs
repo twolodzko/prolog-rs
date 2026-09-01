@@ -1,4 +1,4 @@
-use super::{byrd::ByrdBox, Solver};
+use super::{Solver, byrd::ByrdBox};
 use crate::{
     atom,
     database::Database,

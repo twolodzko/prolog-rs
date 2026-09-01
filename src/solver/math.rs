@@ -7,8 +7,8 @@ pub(super) fn eval(term: &Term, vars: &Vars) -> Result<Term, Error> {
     loop {
         match term {
             Number(_) => return Ok(term.clone()),
-            Struct(ref id, ref args) if args.len() == 1 => {
-                let num = match eval(&args[0], vars)? {
+            Struct(id, args) if let Some([a]) = args.as_array() => {
+                let num = match eval(a, vars)? {
                     Number(val) => val,
                     other => return Err(Error::TypeError(other)),
                 };
@@ -21,10 +21,13 @@ pub(super) fn eval(term: &Term, vars: &Vars) -> Result<Term, Error> {
                 };
                 return Ok(Number(val));
             }
-            Struct(ref id, ref args) if args.len() == 1 && id == "+" => {
-                return eval(&args[0], vars)
+            Struct(id, args)
+                if let Some([a]) = args.as_array()
+                    && id == "+" =>
+            {
+                return eval(a, vars);
             }
-            Struct(ref id, ref args) if args.len() == 2 => {
+            Struct(id, args) if args.len() == 2 => {
                 let (lhs, rhs) = eval_args(args, vars)?;
                 match id.as_str() {
                     "+" => return Ok(Number(lhs + rhs)),
@@ -43,7 +46,7 @@ pub(super) fn eval(term: &Term, vars: &Vars) -> Result<Term, Error> {
                     return {
                         let var = vars.find_origin(term);
                         Err(Error::UnsetVar(var.to_string()))
-                    }
+                    };
                 }
             },
             _ => return Err(Error::ArithError(term.clone())),

@@ -44,10 +44,10 @@ fn unify_var(var: &Term, val: &Term, vars: &mut Vars) -> bool {
     // Dereferencing the value to avoid invalid unification for cycles, as described in
     // Norvig "Correcting A Widespread Error in Unification Algorithms"
     // https://norvig.com/unify-bug.pdf
-    if let Variable(_, _) = val {
-        if let Some(ref val) = vars.get(val).cloned() {
-            return unify(var, val, vars);
-        }
+    if let Variable(_, _) = val
+        && let Some(ref val) = vars.get(val).cloned()
+    {
+        return unify(var, val, vars);
     };
     vars.insert(var.clone(), val.clone());
     true

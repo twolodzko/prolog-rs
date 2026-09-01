@@ -18,8 +18,8 @@ impl Term {
 impl Vars {
     #[allow(clippy::only_used_in_recursion)]
     pub(super) fn cmp(&self, lhs: &Term, rhs: &Term) -> std::cmp::Ordering {
-        use std::cmp::Ordering::*;
         use Term::*;
+        use std::cmp::Ordering::*;
 
         match lhs.ord().cmp(&rhs.ord()) {
             Equal => (),
